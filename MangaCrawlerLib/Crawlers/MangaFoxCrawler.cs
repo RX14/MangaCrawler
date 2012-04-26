@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using TomanuExtensions;
 
-namespace MangaCrawlerLib
+namespace MangaCrawlerLib.Crawlers
 {
     internal class MangaFoxCrawler : Crawler
     {
@@ -44,6 +44,16 @@ namespace MangaCrawlerLib
             IEnumerable<Chapter>> a_progress_callback)
         {
             HtmlDocument doc = DownloadDocument(a_serie);
+
+            var warnings = doc.DocumentNode.SelectNodes("//div[@class='warning']");
+            if (warnings != null)
+            {
+                if (warnings.Any(n => n.InnerHtml.Contains("has been licensed, it is not available in")))
+                {
+                    a_progress_callback(100, new Chapter[0]);
+                    return;
+                }
+            }
 
             var ch1 = doc.DocumentNode.SelectNodes("//ul[@class='chlist']/li/div/h3/a");
             var ch2 = doc.DocumentNode.SelectNodes("//ul[@class='chlist']/li/div/h4/a");
@@ -85,7 +95,8 @@ namespace MangaCrawlerLib
                 Page pi = new Page(
                     a_chapter,
                     a_chapter.URL.Replace("1.html", String.Format("{0}.html", page.GetAttributeValue("value", ""))), 
-                    index);
+                    index, 
+                    "");
 
                 index++;
 

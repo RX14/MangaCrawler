@@ -7,6 +7,8 @@ using YAXLib;
 using System.Reflection;
 using System.IO;
 using System.Drawing;
+using MangaCrawlerLib;
+using System.Xml.Linq;
 
 namespace MangaCrawler
 {
@@ -15,22 +17,40 @@ namespace MangaCrawler
         private static string SETTINGS_XML = "settings.xml";
         private static string SETTINGS_DIR = "MangaCrawler";
 
-        [YAXNode("MangaRootDir")]
-        private string m_manga_root_dir = Environment.GetFolderPath(
-            Environment.SpecialFolder.DesktopDirectory) +
-            Path.DirectorySeparatorChar + Application.ProductName;
+        private static string VERSION = "1.2";
+
+        [YAXAttributeForClass]
+        private string Version;
+
+        [YAXNode]
+        public MangaSettings MangaSettings { get; private set; }
 
         [YAXNode("SeriesFilter")]
         private string m_series_filter = "";
 
-        [YAXNode("SplitterDistance")]
-        private int m_splitter_distance = 200;
+        [YAXNode("SeriesSplitterDistance")]
+        private int m_series_splitter_distance = 0;
 
-        [YAXNode("UseCBZ")]
-        private bool m_use_cbs = false;
+        [YAXNode("BookmarksSplitterDistance")]
+        private int m_bookmarks_splitter_distance = 0;
 
         [YAXNode]
         public FormState FormState = new FormState();
+
+        [YAXNode("PlaySoundWhenDownloaded")]
+        private bool m_play_sound_when_downloaded = false;
+
+        [YAXNode("MinimizeOnClose")]
+        private bool m_minimize_on_close = false;
+
+        [YAXNode("ShowBaloonTips")]
+        private bool m_show_baloon_tips = false;
+
+        [YAXNode("Autostart")]
+        private bool m_autostart = false;
+
+        [YAXNode("CheckBookmarksPeriod")]
+        private TimeSpan m_check_bookmarks_period = new TimeSpan(hours: 0, minutes: 60, seconds: 0);
 
         private static Settings s_instance;
 
@@ -38,11 +58,22 @@ namespace MangaCrawler
         {
             try
             {
-                s_instance = YAXSerializer.LoadFromFile<Settings>(GetSettingsDir() + SETTINGS_XML);
+                s_instance = YAXSerializer.LoadFromFile<Settings>(SettingsFile);
+
+                if (s_instance == null)
+                    s_instance = new Settings();
             }
             catch
             {
                 s_instance = new Settings();
+            }
+        }
+
+        private static string SettingsFile
+        {
+            get
+            {
+                return GetSettingsDir() + SETTINGS_XML;
             }
         }
 
@@ -55,7 +86,7 @@ namespace MangaCrawler
         public void Save()
         {
             Directory.CreateDirectory(GetSettingsDir());
-            YAXSerializer.SaveToFile<Settings>(GetSettingsDir() + SETTINGS_XML, this);
+            YAXSerializer.SaveToFile<Settings>(SettingsFile, this);
         }
 
         public static Settings Instance 
@@ -69,23 +100,27 @@ namespace MangaCrawler
         protected Settings()
         {
             FormState.Changed += () => Save();
+            MangaSettings = new MangaSettings();
+            MangaSettings.Changed += () => Save();
+            Version = VERSION;
         }
 
         [YAXOnDeserialized]
         private void OnDeserialized()
         {
             FormState.Changed += () => Save();
+            MangaSettings.Changed += () => Save();
         }
 
-        public string MangaRootDir
+        public bool PlaySoundWhenDownloaded
         {
             get
             {
-                return m_manga_root_dir;
+                return m_play_sound_when_downloaded;
             }
             set
             {
-                m_manga_root_dir = value;
+                m_play_sound_when_downloaded = value;
                 Save();
             }
         }
@@ -103,28 +138,80 @@ namespace MangaCrawler
             }
         }
 
-        public int SplitterDistance
+        public int SeriesSplitterDistance
         {
             get
             {
-                return m_splitter_distance;
+                return m_series_splitter_distance;
             }
             set
             {
-                m_splitter_distance = value;
+                m_series_splitter_distance = value;
                 Save();
             }
         }
 
-        public bool UseCBZ
+        public int BookmarksSplitterDistance
         {
             get
             {
-                return m_use_cbs;
+                return m_bookmarks_splitter_distance;
             }
             set
             {
-                m_use_cbs = value;
+                m_bookmarks_splitter_distance = value;
+                Save();
+            }
+        }
+
+        public bool MinimizeOnClose
+        {
+            get
+            {
+                return m_minimize_on_close;
+            }
+            set
+            {
+                m_minimize_on_close = value;
+                Save();
+            }
+        }
+
+        public bool ShowBaloonTips
+        {
+            get
+            {
+                return m_show_baloon_tips;
+            }
+            set
+            {
+                m_show_baloon_tips = value;
+                Save();
+            }
+        }
+
+        public bool Autostart
+        {
+            get
+            {
+                return m_autostart;
+            }
+            set
+            {
+                m_autostart = value;
+                Save();
+            }
+        }
+
+        public TimeSpan CheckBookmarksPeriod
+        {
+            get
+            {
+                return m_check_bookmarks_period;
+            }
+            set
+            {
+                m_check_bookmarks_period = value;
                 Save();
             }
         }

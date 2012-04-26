@@ -54,10 +54,21 @@ namespace TomanuExtensions.Utils
             return File.ReadAllBytes(a_path);
         }
 
-        public static string RemoveInvalidFileDirectoryCharacters(string a_path)
+        public static string RemoveInvalidDirectoryCharacters(string a_path)
         {
-            foreach (char c in Path.GetInvalidFileNameChars().Concat(Path.GetInvalidPathChars()).Distinct())
-                a_path = a_path.Replace(new String(new char[] { c }), "");
+            a_path = a_path.Replace("\"", "'");
+
+            foreach (char c in Path.GetInvalidPathChars())
+                a_path = a_path.Replace(new String(new char[] { c }), "_");
+            return a_path;
+        }
+
+        public static string RemoveInvalidFileCharacters(string a_path)
+        {
+            a_path = a_path.Replace("\"", "'");
+
+            foreach (char c in Path.GetInvalidFileNameChars())
+                a_path = a_path.Replace(new String(new char[] { c }), "_");
             return a_path;
         }
     }

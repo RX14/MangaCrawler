@@ -149,13 +149,7 @@ namespace YAXLib
 
         public override object Deserialize(XElement ele)
         {
-            string strTicks = ele.Element("Ticks").Value;
-            long ticks = 0L;
-            if (Int64.TryParse(strTicks, out ticks))
-            {
-                return new TimeSpan(ticks);
-            }
-            return null;
+            return TimeSpan.Parse(ele.Value);
         }
 
         public override Type Type

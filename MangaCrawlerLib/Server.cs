@@ -7,80 +7,74 @@ using System.Diagnostics;
 using TomanuExtensions;
 using System.Threading;
 using MangaCrawlerLib.Crawlers;
-using NHibernate.Mapping.ByCode;
 using System.Collections.ObjectModel;
-using NHibernate.Type;
-using NHibernate;
+using System.IO;
+using TomanuExtensions.Utils;
 
 namespace MangaCrawlerLib
 {
     public class Server : Entity
     {
+        #region SeriesCachedList
+        private class SeriesCachedList : CachedList<Serie>
+        {
+            private Server m_server;
+
+            public SeriesCachedList(Server a_server)
+            {
+                m_server = a_server;
+            }
+
+            protected override void EnsureLoaded()
+            {
+                lock (m_lock)
+                {
+                    if (m_list != null)
+                        return;
+
+                    m_list = Catalog.LoadServerSeries(m_server);
+                }
+            }
+        }
+        #endregion
+
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         private Crawler m_crawler;
 
-        private IList<Serie> m_series;
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        private ServerState m_state;
 
-        public virtual ServerState State { get;  protected set; }
-        public virtual int DownloadProgress { get; protected set; }
-        public virtual string Name { get;  protected set; }
-        protected internal virtual CacheList<Serie> CacheSeries { get; protected set; }
+        private CachedList<Serie> m_series;
+        private DateTime m_check_date_time = DateTime.MinValue;
 
-        protected Server()
-        {
-            Series = new List<Serie>();
-        }
+        public int DownloadProgress { get; private set; }
+        public string Name { get; private set; }
+        protected internal bool SeriesDownloadedFirstTime { get; protected set; }
 
         internal Server(string a_url, string a_name)
-            : this()
+            : this(a_url, a_name, Catalog.NextID(), ServerState.Initial, false)
         {
+        }
+
+        internal Server(string a_url, string a_name, ulong a_id, ServerState a_state, 
+            bool a_series_downloaded_first_time)
+            : base(a_id)
+        {
+            m_series = new SeriesCachedList(this);
             URL = a_url;
             Name = a_name;
+            m_state = a_state;
+            SeriesDownloadedFirstTime = a_series_downloaded_first_time;
+
+            if (m_state == ServerState.Downloading)
+                m_state = ServerState.Initial;
+            if (m_state == ServerState.Waiting)
+                m_state = ServerState.Initial;
+            if (m_state == ServerState.Downloaded)
+                m_state = ServerState.Initial;
         }
 
-        private void Map(ModelMapper a_mapper)
-        {
-            a_mapper.Class<Server>(m =>
-            {
-                m.Id(c => c.ID, mapping => mapping.Generator(Generators.Native));
-                m.Version("Version", mapping => { });
-                m.Property(c => c.URL, mapping => mapping.NotNullable(true));
-                m.Property(c => c.Name, mapping => mapping.NotNullable(true));
-                m.Property(c => c.DownloadProgress, mapping => mapping.NotNullable(true));
-                m.Property(c => c.State, mapping => mapping.NotNullable(true));
-
-                m.List<Serie>(
-                    "Series",
-                    list_mapping => 
-                    {
-                        list_mapping.Cascade(Cascade.All);
-                    },
-                    mapping => mapping.OneToMany()
-                );
-            });
-        }
-
-        protected internal virtual IList<Serie> Series
-        {
-            get
-            {
-                return m_series;
-            }
-
-            protected set
-            {
-                m_series = value;
-                CacheSeries = new CacheList<Serie>(this, value);
-
-            }
-        }
-
-        public virtual IEnumerable<Serie> GetSeries()
-        {
-            return CacheSeries;
-        }
-
-        protected internal override Crawler Crawler
+        internal override Crawler Crawler
         {
             get
             {
@@ -91,85 +85,192 @@ namespace MangaCrawlerLib
             }
         }
 
-        protected internal virtual void DownloadSeries()
+        public IList<Serie> Series 
+        {
+            get
+            {
+                return m_series;
+            }
+        }
+
+        internal void ResetCheckDate()
+        {
+            m_check_date_time = DateTime.MinValue;
+
+            if (m_series.Filled)
+            {
+                foreach (var serie in Series)
+                    serie.ResetCheckDate();
+            }
+        }
+
+        internal void DownloadSeries()
         {
             try
             {
                 Crawler.DownloadSeries(this, (progress, result) =>
                 {
-                    NH.TransactionLockUpdate(this, () =>
+                    Merge<Serie> merge = (cats, news) =>
                     {
-                        IList<Serie> removed;
-                        IList<Serie> added;
-                        CacheSeries.Sync(result, serie => (serie.Title + serie.URL), progress == 100,
-                            out added, out removed);
-                        DownloadProgress = progress;
-                    });
+                        cats.URL = news.URL;
+                    };
+
+                    if (!SeriesDownloadedFirstTime)
+                    {
+                        result = EliminateDoubles(result);
+                        m_series.ReplaceInnerCollection(result, false, s => s.Title, null);
+                    }
+                    else if (progress == 100)
+                    {
+                        result = EliminateDoubles(result);
+                        m_series.ReplaceInnerCollection(result, true, s => s.Title, merge);
+                    }
+                    DownloadProgress = progress;
                 });
 
-                NH.TransactionLockUpdate(this, () => SetState(ServerState.Downloaded));
+                DownloadManager.Instance.Bookmarks.RemoveNotExisted();
+                State = ServerState.Downloaded;
             }
             catch (ObjectDisposedException)
             {
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                NH.TransactionLockUpdate(this, () => SetState(ServerState.Error));
+                Loggers.MangaCrawler.Error(String.Format(
+                    "Exception, server: {0} state: {1}", this, State), ex);
+                State = ServerState.Error;
             }
+
+            SeriesDownloadedFirstTime = true;
+            Catalog.Save(this);
+            m_check_date_time = DateTime.Now;
+        }
+
+        private static IEnumerable<Serie> EliminateDoubles(IEnumerable<Serie> a_series)
+        {
+            a_series = a_series.ToList();
+
+            var doubles = 
+                a_series.Select(s => s.Title).ExceptExact(a_series.Select(s => s.Title).Distinct()).ToArray();
+
+            var same_name_same_url = from serie in a_series
+                                     where doubles.Contains(serie.Title)
+                                     group serie by new { serie.Title, serie.URL } into gr
+                                     from s in gr.Skip(1)
+                                     select s;
+
+            a_series = 
+                a_series.Except(same_name_same_url.ToList()).ToList();
+
+            doubles = a_series.Select(s => s.Title).ExceptExact(a_series.Select(s => s.Title).Distinct()).ToArray();
+
+            var same_name_diff_url = from serie in a_series
+                                     where doubles.Contains(serie.Title)
+                                     group serie by serie.Title;
+
+            foreach (var gr in same_name_diff_url)
+            {
+                int index = 1;
+
+                foreach (var serie in gr)
+                {
+                    serie.Title += String.Format(" ({0})", index);
+                    index++;
+                }
+            }
+
+            return a_series;
         }
 
         public override string ToString()
         {
-            return Name;
+            return String.Format("{0} - {1}", ID, Name);
         }
 
-        public virtual bool DownloadRequired
+        public bool IsDownloadRequired(bool a_force)
+        {
+            if (State == ServerState.Downloaded)
+            {
+                if (!a_force)
+                {
+                    if (DateTime.Now - m_check_date_time > DownloadManager.Instance.MangaSettings.CheckTimePeriod)
+                        return true;
+                    else
+                        return false;
+                }
+                else
+                    return true;
+            }
+            else
+                return (State == ServerState.Error) || (State == ServerState.Initial);
+        }
+
+        public override string GetDirectory()
+        {
+            string manga_root_dir = DownloadManager.Instance.MangaSettings.GetMangaRootDir(true); ;
+
+            return manga_root_dir +
+                   Path.DirectorySeparatorChar +
+                   FileUtils.RemoveInvalidFileCharacters(Name) +
+                   Path.DirectorySeparatorChar;
+        }
+
+        public ServerState State
         {
             get
             {
-                return (State == ServerState.Error) || (State == ServerState.Initial);
+                return m_state;
+            }
+            set
+            {
+                switch (value)
+                {
+                    case ServerState.Initial:
+                    {
+                        break;
+                    }
+                    case ServerState.Waiting:
+                    {
+                        Debug.Assert((State == ServerState.Initial) ||
+                                     (State == ServerState.Error) || 
+                                     (State == ServerState.Downloaded));
+                        DownloadProgress = 0;
+                        break;
+                    }
+                    case ServerState.Downloading:
+                    {
+                        Debug.Assert((State == ServerState.Waiting) ||
+                                     (State == ServerState.Downloading));
+                        break;
+                    }
+                    case ServerState.Downloaded:
+                    {
+                        Debug.Assert(State == ServerState.Downloading);
+                        Debug.Assert(DownloadProgress == 100);
+                        break;
+                    }
+                    case ServerState.Error:
+                    {
+                        Debug.Assert(State == ServerState.Downloading);
+                        break;
+                    }
+                    default:
+                    {
+                        throw new InvalidOperationException(String.Format("Unknown state: {0}", value));
+                    }
+                }
+
+                m_state = value;
             }
         }
 
-        protected internal virtual void SetState(ServerState a_state)
+        public override bool IsDownloading
         {
-            switch (a_state)
+            get
             {
-                case ServerState.Initial:
-                {
-                    break;
-                }
-                case ServerState.Waiting:
-                {
-                    Debug.Assert((State == ServerState.Downloaded) ||
-                                 (State == ServerState.Initial) ||
-                                 (State == ServerState.Error));
-                    break;
-                }
-                case ServerState.Downloading:
-                {
-                    Debug.Assert(State == ServerState.Waiting);
-                    DownloadProgress = 0;
-                    break;
-                }
-                case ServerState.Downloaded:
-                {
-                    Debug.Assert(State == ServerState.Downloading);
-                    Debug.Assert(DownloadProgress == 100);
-                    break;
-                }
-                case ServerState.Error:
-                {
-                    Debug.Assert(State == ServerState.Downloading);
-                    break;
-                }
-                default:
-                {
-                    throw new InvalidOperationException(String.Format("Unknown state: {0}", a_state));
-                }
+                return (State == ServerState.Downloading) ||
+                       (State == ServerState.Waiting);
             }
-
-            State = a_state;
         }
     }
 }

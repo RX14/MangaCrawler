@@ -19,18 +19,18 @@ namespace MangaCrawlerLib
         Initial,
         Waiting,
         Downloading,
-        Downloaded,
+        Downloaded, 
         Error
     }
 
     public enum ChapterState
     {
         Initial,
-        Aborted,
+        Cancelled,
         Waiting,
         DownloadingPagesList,
         DownloadingPages,
-        Deleting,
+        Cancelling,
         Zipping,
         Downloaded,
         Error
@@ -39,10 +39,7 @@ namespace MangaCrawlerLib
     public enum PageState
     {
         Initial, 
-        WaitingForDownloading,
-        WaitingForVerifing, 
-        Veryfing,
-        Veryfied, 
+        Waiting,
         Downloading, 
         Downloaded, 
         Error

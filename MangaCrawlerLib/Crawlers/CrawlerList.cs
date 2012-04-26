@@ -12,7 +12,7 @@ namespace MangaCrawlerLib.Crawlers
 
         static CrawlerList()
         {
-            #if TEST_SERVERS
+            #if LOCAL_SERVERS
             AddCrawlers(GetTestCrawlers());
             #else
             AddCrawlers(GetRealCrawlers());
@@ -24,12 +24,15 @@ namespace MangaCrawlerLib.Crawlers
             yield return new TestServerCrawler("normal", 1000, false, false, false, 0);
             yield return new TestServerCrawler("empty", 500, false, false, true, 0);
             yield return new TestServerCrawler("fast", 300, false, false, false, 0);
+            yield return new TestServerCrawler("no_delay", 0, false, false, false, 0);
             yield return new TestServerCrawler("fast, max_con", 300, false, false, false, 1);
             yield return new TestServerCrawler("very_slow", 3000, false, false, false, 0);
             yield return new TestServerCrawler("normal, slow series chapters", 1000, true, true, false, 0);
             yield return new TestServerCrawler("fast, slow series chapters", 300, true, true, false, 0);
             yield return new TestServerCrawler("very_slow, slow", 3000, true, true, false, 0);
             yield return new TestServerCrawler("very_slow, max_con, slow", 3000, true, true, false, 1);
+            yield return new TestServerCrawler("error series none", 3000, true, true, false, 0);
+            yield return new TestServerCrawler("error series few", 3000, true, true, false, 0);
         }
 
         public static IEnumerable<Crawler> GetRealCrawlers()

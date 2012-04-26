@@ -398,6 +398,9 @@ namespace YAXLib
         /// <returns>The deserialized object.</returns>
         public object DeserializeFromFile(string fileName)
         {
+            if (!new FileInfo(fileName).Exists)
+                return null;
+
             try
             {
                 return this.Deserialize(File.ReadAllText(fileName));

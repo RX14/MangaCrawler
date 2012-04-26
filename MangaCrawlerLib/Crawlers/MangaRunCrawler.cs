@@ -9,7 +9,7 @@ using TomanuExtensions;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
-namespace MangaCrawlerLib 
+namespace MangaCrawlerLib.Crawlers
 {
     internal class MangaRunCrawler : Crawler
     {
@@ -242,15 +242,6 @@ namespace MangaCrawlerLib
                             result.Add(s);
 
                             index += 1;
-                        }
-
-                        if (a_chapter.Token.IsCancellationRequested)
-                        {
-                            Loggers.Cancellation.InfoFormat(
-                                "Pages - token cancelled, a_url: {0}",
-                                a_chapter.URL);
-
-                            a_chapter.Token.ThrowIfCancellationRequested();
                         }
                     }
                     catch

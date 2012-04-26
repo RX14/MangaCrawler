@@ -30,62 +30,58 @@ namespace MangaCrawler
                 switch (Chapter.State)
                 {
                     case ChapterState.Error:
-
+                    {
                         a_args.Graphics.DrawString(Resources.Error, font,
                             Brushes.Red, rect, StringFormat.GenericDefault);
                         break;
-
-                    case ChapterState.Aborted:
-
-                        a_args.Graphics.DrawString(Resources.Aborted, font,
+                    }
+                    case ChapterState.Cancelled:
+                    {
+                        a_args.Graphics.DrawString(Resources.Cancelled, font,
                             Brushes.Red, rect, StringFormat.GenericDefault);
                         break;
-
+                    }
                     case ChapterState.Downloaded:
-
+                    {
                         a_args.Graphics.DrawString(Resources.Downloaded, font,
                             Brushes.Green, rect, StringFormat.GenericDefault);
                         break;
-
+                    }
                     case ChapterState.Waiting:
-
+                    {
                         a_args.Graphics.DrawString(Resources.Waiting, font,
                             Brushes.Blue, rect, StringFormat.GenericDefault);
                         break;
-
-                    case ChapterState.Deleting:
-
-                        a_args.Graphics.DrawString(Resources.Deleting, font,
+                    }
+                    case ChapterState.Cancelling:
+                    {
+                        a_args.Graphics.DrawString(Resources.Cancelling, font,
                             Brushes.Blue, rect, StringFormat.GenericDefault);
                         break;
-
+                    }
                     case ChapterState.DownloadingPagesList:
                     {
                         a_args.Graphics.DrawString(Resources.Downloading, font,
                             Brushes.Blue, rect, StringFormat.GenericDefault);
                         break;
                     }
-
                     case ChapterState.DownloadingPages:
                     {
                         a_args.Graphics.DrawString(
-                            String.Format("{0}/{1}", Chapter.PagesDownloaded, Chapter.GetPages().Count()), 
+                            String.Format("{0}/{1}", Chapter.PagesDownloaded, Chapter.Pages.Count), 
                             font, Brushes.Blue, rect, StringFormat.GenericDefault);
                         break;
                     }
-
                     case ChapterState.Zipping:
                     {
                         a_args.Graphics.DrawString(Resources.Zipping, font,
                             Brushes.Blue, rect, StringFormat.GenericDefault);
                         break;
                     }
-
                     case ChapterState.Initial:
                     {
                         break;
                     }
-
                     default:
                     {
                         throw new NotImplementedException();
@@ -93,10 +89,10 @@ namespace MangaCrawler
                 }
             };
 
-            DrawItem(a_args, Chapter.Title, draw_tip);
+            DrawItem(a_args, draw_tip);
         }
 
-        public override int ID
+        public override ulong ID
         {
             get 
             {

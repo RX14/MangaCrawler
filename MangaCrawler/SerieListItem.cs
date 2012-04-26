@@ -23,7 +23,7 @@ namespace MangaCrawler
             return Serie.Title;
         }
 
-        public override int ID
+        public override ulong ID
         {
             get
             {
@@ -48,9 +48,14 @@ namespace MangaCrawler
 
                     case SerieState.Downloaded:
 
-                        a_args.Graphics.DrawString(
-                            String.Format(Resources.Chapters, Serie.GetChapters().Count()),
+                        string str = Serie.Chapters.Count.ToString();
+
+                        if (Serie.IsBookmarked)
+                            str = Resources.Bookmarked;
+
+                        a_args.Graphics.DrawString(str,
                             font, Brushes.Green, rect, StringFormat.GenericDefault);
+
                         break;
 
                     case SerieState.Waiting:
@@ -66,13 +71,17 @@ namespace MangaCrawler
                             font, Brushes.Blue, rect, StringFormat.GenericDefault);
                         break;
 
-                    case SerieState.Initial: break;
+                    case SerieState.Initial:
 
-                     default: throw new NotImplementedException();
+                        break;
+
+                    default: 
+                         
+                         throw new NotImplementedException();
                 }
             };
 
-            DrawItem(a_args, Serie.Title, draw_tip);
+            DrawItem(a_args, draw_tip);
         }
     }
 }

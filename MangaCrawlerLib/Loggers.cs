@@ -9,13 +9,18 @@ namespace MangaCrawlerLib
     // Sync with MangaCrawler/app.config
     public static class Loggers
     {
-        public static ILog ConLimits = LogManager.GetLogger("ConLimits");
-        public static ILog Cancellation = LogManager.GetLogger("Cancellation");
-        public static ILog Test = LogManager.GetLogger("Test");
-        public static ILog Settings = LogManager.GetLogger("Settings");
-        public static ILog NHibernate = LogManager.GetLogger("NHibernate");
-        public static ILog NH = LogManager.GetLogger("NH");
         public static ILog MangaCrawler = LogManager.GetLogger("MangaCrawler");
         public static ILog GUI = LogManager.GetLogger("GUI");
+
+        public static bool Log()
+        {
+            #if DEBUG
+            return true;
+            #elif LOCAL_SERVERS
+            return true;
+            #else
+            return false;
+            #endif
+        }
     }
 }

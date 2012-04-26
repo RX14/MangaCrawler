@@ -60,30 +60,67 @@ namespace MangaCrawler.Properties {
             }
         }
         
-        /// <summary>
-        ///   Looks up a localized string similar to ABORTING.
-        /// </summary>
-        internal static string Aborted {
+        internal static System.Drawing.Bitmap Bookmark {
             get {
-                return ResourceManager.GetString("Aborted", resourceCulture);
+                object obj = ResourceManager.GetObject("Bookmark", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Chapters: {0}.
+        ///   Looks up a localized string similar to BOOKMARKED.
         /// </summary>
-        internal static string Chapters {
+        internal static string Bookmarked {
             get {
-                return ResourceManager.GetString("Chapters", resourceCulture);
+                return ResourceManager.GetString("Bookmarked", resourceCulture);
+            }
+        }
+        
+        internal static System.Drawing.Bitmap Cancel {
+            get {
+                object obj = ResourceManager.GetObject("Cancel", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to DELETING.
+        ///   Looks up a localized string similar to CANCELLED.
         /// </summary>
-        internal static string Deleting {
+        internal static string Cancelled {
             get {
-                return ResourceManager.GetString("Deleting", resourceCulture);
+                return ResourceManager.GetString("Cancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CANCELLING.
+        /// </summary>
+        internal static string Cancelling {
+            get {
+                return ResourceManager.GetString("Cancelling", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to CHECKING.
+        /// </summary>
+        internal static string Checking {
+            get {
+                return ResourceManager.GetString("Checking", resourceCulture);
+            }
+        }
+        
+        internal static System.Drawing.Bitmap CheckNow {
+            get {
+                object obj = ResourceManager.GetObject("CheckNow", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap Delete {
+            get {
+                object obj = ResourceManager.GetObject("Delete", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
             }
         }
         
@@ -93,6 +130,13 @@ namespace MangaCrawler.Properties {
         internal static string DirError {
             get {
                 return ResourceManager.GetString("DirError", resourceCulture);
+            }
+        }
+        
+        internal static System.Drawing.Bitmap Download {
+            get {
+                object obj = ResourceManager.GetObject("Download", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
             }
         }
         
@@ -115,13 +159,76 @@ namespace MangaCrawler.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to server: {0}
-        ///serie: {1}
-        ///chapter: {2}.
+        ///   Looks up a localized string similar to serie: {1}
+        ///chapter: {2}
+        ///server: {0}.
         /// </summary>
         internal static string DownloadingChapterInfo {
             get {
                 return ResourceManager.GetString("DownloadingChapterInfo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cancelled.
+        /// </summary>
+        internal static string DownloadingProgressCancelled {
+            get {
+                return ResourceManager.GetString("DownloadingProgressCancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cancelling.
+        /// </summary>
+        internal static string DownloadingProgressCancelling {
+            get {
+                return ResourceManager.GetString("DownloadingProgressCancelling", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Downloaded.
+        /// </summary>
+        internal static string DownloadingProgressDownloaded {
+            get {
+                return ResourceManager.GetString("DownloadingProgressDownloaded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Downloading.
+        /// </summary>
+        internal static string DownloadingProgressDownloading {
+            get {
+                return ResourceManager.GetString("DownloadingProgressDownloading", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error.
+        /// </summary>
+        internal static string DownloadingProgressError {
+            get {
+                return ResourceManager.GetString("DownloadingProgressError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Waiting.
+        /// </summary>
+        internal static string DownloadingProgressWaiting {
+            get {
+                return ResourceManager.GetString("DownloadingProgressWaiting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Zipping.
+        /// </summary>
+        internal static string DownloadingProgressZipping {
+            get {
+                return ResourceManager.GetString("DownloadingProgressZipping", resourceCulture);
             }
         }
         
@@ -135,20 +242,34 @@ namespace MangaCrawler.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Downloading in progress. Exit anyway?.
-        /// </summary>
-        internal static string ExitQuestion {
-            get {
-                return ResourceManager.GetString("ExitQuestion", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to http://mangacrawler.codeplex.com/.
         /// </summary>
         internal static string HomePage {
             get {
                 return ResourceManager.GetString("HomePage", resourceCulture);
+            }
+        }
+        
+        internal static System.Drawing.Bitmap Manga_Crawler_Green {
+            get {
+                object obj = ResourceManager.GetObject("Manga_Crawler_Green", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap Manga_Crawler_Orange {
+            get {
+                object obj = ResourceManager.GetObject("Manga_Crawler_Orange", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to NEW.
+        /// </summary>
+        internal static string New {
+            get {
+                return ResourceManager.GetString("New", resourceCulture);
             }
         }
         
@@ -161,12 +282,40 @@ namespace MangaCrawler.Properties {
             }
         }
         
-        /// <summary>
-        ///   Looks up a localized string similar to Series: {0}.
-        /// </summary>
-        internal static string Series {
+        internal static System.Drawing.Bitmap OpenFolder {
             get {
-                return ResourceManager.GetString("Series", resourceCulture);
+                object obj = ResourceManager.GetObject("OpenFolder", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap ReadManga {
+            get {
+                object obj = ResourceManager.GetObject("ReadManga", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        internal static System.Drawing.Bitmap ShowInSeries {
+            get {
+                object obj = ResourceManager.GetObject("ShowInSeries", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to New chapters in:.
+        /// </summary>
+        internal static string TrayNotificationNewSeries {
+            get {
+                return ResourceManager.GetString("TrayNotificationNewSeries", resourceCulture);
+            }
+        }
+        
+        internal static System.Drawing.Bitmap VisitPage {
+            get {
+                object obj = ResourceManager.GetObject("VisitPage", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
             }
         }
         
@@ -176,69 +325,6 @@ namespace MangaCrawler.Properties {
         internal static string Waiting {
             get {
                 return ResourceManager.GetString("Waiting", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Cancelled.
-        /// </summary>
-        internal static string WorkProgressAborted {
-            get {
-                return ResourceManager.GetString("WorkProgressAborted", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Deleting.
-        /// </summary>
-        internal static string WorkProgressDeleting {
-            get {
-                return ResourceManager.GetString("WorkProgressDeleting", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Downloaded.
-        /// </summary>
-        internal static string WorkProgressDownloaded {
-            get {
-                return ResourceManager.GetString("WorkProgressDownloaded", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Downloading.
-        /// </summary>
-        internal static string WorkProgressDownloading {
-            get {
-                return ResourceManager.GetString("WorkProgressDownloading", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Error.
-        /// </summary>
-        internal static string WorkProgressError {
-            get {
-                return ResourceManager.GetString("WorkProgressError", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Waiting.
-        /// </summary>
-        internal static string WorkProgressWaiting {
-            get {
-                return ResourceManager.GetString("WorkProgressWaiting", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Zipping.
-        /// </summary>
-        internal static string WorkProgressZipping {
-            get {
-                return ResourceManager.GetString("WorkProgressZipping", resourceCulture);
             }
         }
         

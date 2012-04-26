@@ -117,11 +117,8 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="Chapters" xml:space="preserve">
-    <value>Chapters: {0}</value>
-  </data>
-  <data name="Deleting" xml:space="preserve">
-    <value>DELETING</value>
+  <data name="Cancelling" xml:space="preserve">
+    <value>CANCELLING</value>
   </data>
   <data name="DirError" xml:space="preserve">
     <value>Can't create directory: '{0}'</value>
@@ -132,17 +129,8 @@
   <data name="Error" xml:space="preserve">
     <value>ERROR</value>
   </data>
-  <data name="ExitQuestion" xml:space="preserve">
-    <value>Downloading in progress. Exit anyway?</value>
-  </data>
-  <data name="HomePage" xml:space="preserve">
-    <value>http://mangacrawler.codeplex.com/</value>
-  </data>
   <data name="NewVersion" xml:space="preserve">
     <value>New version</value>
-  </data>
-  <data name="Series" xml:space="preserve">
-    <value>Series: {0}</value>
   </data>
   <data name="Waiting" xml:space="preserve">
     <value>WAITING</value>
@@ -150,36 +138,85 @@
   <data name="Zipping" xml:space="preserve">
     <value>ZIPPING</value>
   </data>
-  <data name="Aborted" xml:space="preserve">
-    <value>ABORTING</value>
+  <data name="Cancelled" xml:space="preserve">
+    <value>CANCELLED</value>
   </data>
   <data name="DownloadingChapterInfo" xml:space="preserve">
-    <value>server: {0}
-serie: {1}
-chapter: {2}</value>
+    <value>serie: {1}
+chapter: {2}
+server: {0}</value>
   </data>
-  <data name="WorkProgressAborted" xml:space="preserve">
+  <data name="DownloadingProgressCancelled" xml:space="preserve">
     <value>Cancelled</value>
   </data>
-  <data name="WorkProgressDeleting" xml:space="preserve">
-    <value>Deleting</value>
+  <data name="DownloadingProgressCancelling" xml:space="preserve">
+    <value>Cancelling</value>
   </data>
-  <data name="WorkProgressDownloaded" xml:space="preserve">
+  <data name="DownloadingProgressDownloaded" xml:space="preserve">
     <value>Downloaded</value>
   </data>
-  <data name="WorkProgressError" xml:space="preserve">
+  <data name="DownloadingProgressError" xml:space="preserve">
     <value>Error</value>
   </data>
-  <data name="WorkProgressWaiting" xml:space="preserve">
+  <data name="DownloadingProgressWaiting" xml:space="preserve">
     <value>Waiting</value>
   </data>
-  <data name="WorkProgressZipping" xml:space="preserve">
+  <data name="DownloadingProgressZipping" xml:space="preserve">
     <value>Zipping</value>
   </data>
   <data name="Downloading" xml:space="preserve">
     <value>DOWNLOADING</value>
   </data>
-  <data name="WorkProgressDownloading" xml:space="preserve">
+  <data name="DownloadingProgressDownloading" xml:space="preserve">
     <value>Downloading</value>
+  </data>
+  <data name="Checking" xml:space="preserve">
+    <value>CHECKING</value>
+  </data>
+  <data name="Bookmarked" xml:space="preserve">
+    <value>BOOKMARKED</value>
+  </data>
+  <data name="New" xml:space="preserve">
+    <value>NEW</value>
+  </data>
+  <data name="TrayNotificationNewSeries" xml:space="preserve">
+    <value>New chapters in:</value>
+  </data>
+  <data name="HomePage" xml:space="preserve">
+    <value>http://mangacrawler.codeplex.com/</value>
+  </data>
+  <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+  <data name="Bookmark" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\Bookmark.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Cancel" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\Cancel.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="CheckNow" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\CheckNow.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Delete" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\Delete.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Manga_Crawler_Green" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\Manga_Crawler_Green.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Manga_Crawler_Orange" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\Manga_Crawler_Orange.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="OpenFolder" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\OpenFolder.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="ReadManga" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\ReadManga.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="ShowInSeries" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\ShowInSeries.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="VisitPage" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\VisitPage.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Download" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Images\Download.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
 </root>

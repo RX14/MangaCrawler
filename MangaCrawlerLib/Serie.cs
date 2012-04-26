@@ -4,84 +4,90 @@ using System.Linq;
 using System.Text;
 using System.Web;
 using System.Diagnostics;
-using NHibernate.Mapping.ByCode;
 using System.Collections.ObjectModel;
 using System.Threading;
-using NHibernate;
+using System.IO;
+using TomanuExtensions.Utils;
+using TomanuExtensions;
 
 namespace MangaCrawlerLib
 {
     public class Serie : Entity
     {
-        private IList<Chapter> m_chapters;
-
-        public virtual SerieState State { get; protected set; }
-        public virtual Server Server { get; protected set; }
-        public virtual string Title { get; protected set; }
-        public virtual int DownloadProgress { get; protected set; }
-        protected internal virtual CacheList<Chapter> CacheChapters { get; protected set; }
-
-        protected Serie()
+        #region ChaptersCachedList
+        private class ChaptersCachedList : CachedList<Chapter>
         {
-            Chapters = new List<Chapter>();
+            private Serie m_serie;
+
+            public ChaptersCachedList(Serie a_serie)
+            {
+                m_serie = a_serie;
+            }
+
+            protected override void EnsureLoaded()
+            {
+                lock (m_lock)
+                {
+                    if (m_list != null)
+                        return;
+
+                    m_list = Catalog.LoadSerieChapters(m_serie);
+                }
+            }
         }
+        #endregion
+
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        private Object m_lock = new Object();
+
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        private SerieState m_state;
+
+        private CachedList<Chapter> m_chapters;
+        private DateTime m_check_date_time = DateTime.MinValue;
+
+        public Server Server { get; protected set; }
+        public string Title { get; internal set; }
+        public int DownloadProgress { get; protected set; }
+        protected internal bool ChaptersDownloadedFirstTime { get; protected set; }
 
         internal Serie(Server a_server, string a_url, string a_title)
-            : this()
+            : this(a_server, a_url, a_title, Catalog.NextID(), SerieState.Initial, false)
         {
-            URL = HttpUtility.HtmlDecode(a_url);
+        }
+
+        internal Serie(Server a_server, string a_url, string a_title, ulong a_id, SerieState a_state, 
+            bool a_chapters_downloaded_first_time)
+            : base(a_id)
+        {
+            m_chapters = new ChaptersCachedList(this);
+            URL = HtmlDecode(a_url);
             Server = a_server;
+            m_state = a_state;
+            ChaptersDownloadedFirstTime = a_chapters_downloaded_first_time;
+
+            if (m_state == SerieState.Downloading)
+                m_state = SerieState.Initial;
+            if (m_state == SerieState.Waiting)
+                m_state = SerieState.Initial;
 
             a_title = a_title.Trim();
             a_title = a_title.Replace("\t", " ");
             while (a_title.IndexOf("  ") != -1)
                 a_title = a_title.Replace("  ", " ");
-            Title = HttpUtility.HtmlDecode(a_title);
+
+            Title = HtmlDecode(a_title);
         }
 
-        private void Map(ModelMapper a_mapper)
-        {
-            a_mapper.Class<Serie>(m =>
-            {
-                m.Id(c => c.ID, mapping => mapping.Generator(Generators.Native));
-                m.Version("Version", mapping => { });
-                m.Property(c => c.URL, mapping => mapping.NotNullable(true));
-                m.Property(c => c.Title, mapping => mapping.NotNullable(true));
-                m.Property(c => c.DownloadProgress, mapping => mapping.NotNullable(true));
-                m.Property(c => c.State, mapping => mapping.NotNullable(true));
-
-                m.List<Chapter>(
-                    "Chapters", 
-                    list_mapping => list_mapping.Cascade(Cascade.All), 
-                    mapping => mapping.OneToMany()
-                );
-
-                m.ManyToOne(
-                    c => c.Server, 
-                    mapping => 
-                    {
-                        mapping.NotNullable(false); 
-                    }
-                );
-            });
-        }
-
-        protected internal virtual IList<Chapter> Chapters
+        public IList<Chapter> Chapters
         {
             get
             {
                 return m_chapters;
             }
-
-            protected set
-            {
-                m_chapters = value;
-                CacheChapters = new CacheList<Chapter>(this, value);
-
-            }
         }
 
-        protected internal override Crawler Crawler
+        internal override Crawler Crawler
         {
             get
             {
@@ -89,38 +95,62 @@ namespace MangaCrawlerLib
             }
         }
 
-        public virtual IEnumerable <Chapter> GetChapters()
+        internal void ResetCheckDate()
         {
-            return CacheChapters;
+            m_check_date_time = DateTime.MinValue;
         }
 
-        protected internal virtual void DownloadChapters()
+        internal void DownloadChapters()
         {
             try
             {
+                Merge<Chapter> merge = (catc, newc) =>
+                {
+                    catc.URL = newc.URL;
+                };
+
                 Crawler.DownloadChapters(this, (progress, result) =>
                 {
-                    NH.TransactionLockUpdate(this, () =>
+                    if (!ChaptersDownloadedFirstTime)
                     {
-                        IList<Chapter> added;
-                        IList<Chapter> removed;
-                        CacheChapters.Sync(result, chapter => (chapter.Title + chapter.URL),
-                            progress == 100, out added, out removed);
-
-                        DownloadProgress = progress;
-                    });
+                        result.ForEach(ch => ch.BookmarkNew = false);
+                        result = EliminateDoubles(result);
+                        m_chapters.ReplaceInnerCollection(result, false, c => c.Title, null);
+                    }
+                    else if (progress == 100)
+                    {
+                        result = EliminateDoubles(result);
+                        m_chapters.ReplaceInnerCollection(result, true, c => c.Title, merge);
+                    }
+                    DownloadProgress = progress; 
                 });
 
-                NH.TransactionLockUpdate(this, () => SetState(SerieState.Downloaded));
-
+                State = SerieState.Downloaded;
             }
             catch (ObjectDisposedException)
             {
             }
-            catch (Exception)
+            catch (Exception ex1)
             {
-                NH.TransactionLockUpdate(this, () => SetState(SerieState.Downloaded));
+                State = SerieState.Error;
+
+                Loggers.MangaCrawler.Error(
+                    String.Format("Exception #1, serie: {0} state: {1}", this, State), ex1);
+
+                try
+                {
+                    DownloadManager.Instance.DownloadSeries(Server, true);
+                }
+                catch (Exception ex2)
+                {
+                    Loggers.MangaCrawler.Error(
+                        String.Format("Exception #2, serie: {0} state: {1}", this, State), ex2);
+                }
             }
+
+            ChaptersDownloadedFirstTime = true;
+            Catalog.Save(this);
+            m_check_date_time = DateTime.Now;
         }
 
         public override string ToString()
@@ -128,53 +158,142 @@ namespace MangaCrawlerLib
             return String.Format("{0} - {1}", Server.Name, Title);
         }
 
-        public virtual bool DownloadRequired
+        private static IEnumerable<Chapter> EliminateDoubles(IEnumerable<Chapter> a_series)
+        {
+            a_series = a_series.ToList();
+
+            var doubles =
+                a_series.Select(s => s.Title).ExceptExact(a_series.Select(s => s.Title).Distinct()).ToArray();
+
+            var same_name_same_url = from serie in a_series
+                                     where doubles.Contains(serie.Title)
+                                     group serie by new { serie.Title, serie.URL } into gr
+                                     from s in gr.Skip(1)
+                                     select s;
+
+            a_series =
+                a_series.Except(same_name_same_url.ToList()).ToList();
+
+            doubles = a_series.Select(s => s.Title).ExceptExact(a_series.Select(s => s.Title).Distinct()).ToArray();
+
+            var same_name_diff_url = from serie in a_series
+                                     where doubles.Contains(serie.Title)
+                                     group serie by serie.Title;
+
+            foreach (var gr in same_name_diff_url)
+            {
+                int index = 1;
+
+                foreach (var serie in gr)
+                {
+                    serie.Title += String.Format(" ({0})", index);
+                    index++;
+                }
+            }
+
+            return a_series;
+        }
+
+        public bool IsDownloadRequired(bool a_force)
+        {
+            if (State == SerieState.Downloaded)
+            {
+                if (!a_force)
+                {
+                    if (DateTime.Now - m_check_date_time > DownloadManager.Instance.MangaSettings.CheckTimePeriod)
+                        return true;
+                    else
+                        return false;
+                }
+                return true;
+            }
+            else
+                return (State == SerieState.Error) || (State == SerieState.Initial);
+        }
+
+        public SerieState State
         {
             get
             {
-                return (State == SerieState.Error) || (State == SerieState.Initial);
+                return m_state;
+            }
+            set
+            {
+                switch (value)
+                {
+                    case SerieState.Initial:
+                    {
+                        break;
+                    }
+                    case SerieState.Waiting:
+                    {
+                        Debug.Assert((State == SerieState.Downloaded) ||
+                                     (State == SerieState.Initial) ||
+                                     (State == SerieState.Error));
+                        DownloadProgress = 0;
+                        break;
+                    }
+                    case SerieState.Downloading:
+                    {
+                        Debug.Assert((State == SerieState.Waiting) ||
+                                     (State == SerieState.Downloading));
+                        break;
+                    }
+                    case SerieState.Downloaded:
+                    {
+                        Debug.Assert(State == SerieState.Downloading);
+                        Debug.Assert(DownloadProgress == 100);
+                        break;
+                    }
+                    case SerieState.Error:
+                    {
+                        Debug.Assert(State == SerieState.Downloading);
+                        break;
+                    }
+                    default:
+                    {
+                        throw new InvalidOperationException(String.Format("Unknown state: {0}", value));
+                    }
+                }
+
+                m_state = value;
             }
         }
 
-        protected internal virtual void SetState(SerieState a_state)
+        public override string GetDirectory()
         {
-            switch (a_state)
-            {
-                case SerieState.Initial:
-                {
-                    break;
-                }
-                case SerieState.Waiting:
-                {
-                    Debug.Assert((State == SerieState.Downloaded) ||
-                                 (State == SerieState.Initial) ||
-                                 (State == SerieState.Error));
-                    break;
-                }
-                case SerieState.Downloading:
-                {
-                    Debug.Assert(State == SerieState.Waiting);
-                    DownloadProgress = 0;
-                    break;
-                }
-                case SerieState.Downloaded:
-                {
-                    Debug.Assert(State == SerieState.Downloading);
-                    Debug.Assert(DownloadProgress == 100);
-                    break;
-                }
-                case SerieState.Error:
-                {
-                    Debug.Assert(State == SerieState.Downloading);
-                    break;
-                }
-                default:
-                {
-                    throw new InvalidOperationException(String.Format("Unknown state: {0}", a_state));
-                }
-            }
+            string manga_root_dir = DownloadManager.Instance.MangaSettings.GetMangaRootDir(true); ;
 
-            State = a_state;
+            return manga_root_dir +
+                   Path.DirectorySeparatorChar +
+                   FileUtils.RemoveInvalidFileCharacters(Server.Name) +
+                   Path.DirectorySeparatorChar +
+                   FileUtils.RemoveInvalidFileCharacters(Title) +
+                   Path.DirectorySeparatorChar;
+        }
+
+        public override bool IsDownloading
+        {
+            get
+            {
+                return (State == SerieState.Downloading) ||
+                       (State == SerieState.Waiting);
+            }
+        }
+
+        public bool IsBookmarked
+        {
+            get
+            {
+                return DownloadManager.Instance.Bookmarks.List.Contains(this);
+            }
+        }
+
+        public IEnumerable<Chapter> GetNewChapters()
+        {
+            return (from chapter in Chapters
+                    where chapter.BookmarkNew
+                    select chapter).ToList();
         }
     }
 }

@@ -13,46 +13,78 @@ using System.Collections.Concurrent;
 using HtmlAgilityPack;
 using TomanuExtensions;
 using System.Collections.ObjectModel;
-using NHibernate.Linq;
-using NHibernate;
+using MangaCrawlerLib.Crawlers;
 
 namespace MangaCrawlerLib
 {
-    public static class DownloadManager
+    public class DownloadManager
     {
-        internal static string UserAgent = "Mozilla/5.0 (Windows NT 6.0; WOW64; rv:10.0) Gecko/20100101 Firefox/10.0";
+        public string SettingsDir { get; private set; }
+        public MangaSettings MangaSettings { get; private set; }
+        public Bookmarks Bookmarks { get; private set; }
+        public Downloading Downloadings { get; private set; }
+        
+        private List<Entity> m_downloading = new List<Entity>();
+        private Server[] m_servers;
 
-        public static Func<string> GetMangaRootDir;
-        public static Func<bool> UseCBZ;
+        public static DownloadManager Instance { get; private set; }
 
-        private static Server[] s_servers;
-        private static List<Chapter> s_works = new List<Chapter>();
-
-        static DownloadManager()
+        public static void Create(MangaSettings a_manga_settings, string a_settings_dir)
         {
-            HtmlWeb.UserAgent_Actual = UserAgent;
+            Instance = new DownloadManager(a_manga_settings, a_settings_dir);
+            Instance.Initialize();
         }
 
-        public static void DownloadSeries(Server a_server)
+        private void Initialize()
+        {
+            m_servers = Catalog.LoadCatalog();
+
+            Bookmarks.Load();
+            Downloadings.Load();
+        }
+
+        private  DownloadManager(MangaSettings a_manga_settings, string a_settings_dir)
+        {
+            SettingsDir = a_settings_dir;
+            MangaSettings = a_manga_settings;
+            Bookmarks = new Bookmarks();
+            Downloadings = new Downloading();
+
+            HtmlWeb.UserAgent_Actual = a_manga_settings.UserAgent;
+        }
+
+        public bool NeedGUIRefresh(bool a_reset_state)
+        {
+            lock (m_downloading)
+            {
+                bool result = m_downloading.Any();
+
+                if (a_reset_state)
+                {
+                    m_downloading = (from entity in m_downloading
+                                     where entity.IsDownloading
+                                     select entity).ToList();
+                }
+
+                return result;
+            }
+        }
+
+        public void DownloadSeries(Server a_server, bool a_force)
         {
             if (a_server == null)
                 return;
 
-            bool download_required = NH.TransactionLockUpdateWithResult(a_server, () => 
-            {
-                if (!a_server.DownloadRequired)
-                    return false;
-                a_server.SetState(ServerState.Waiting);
-                return true;
-            });
-
-            if (!download_required)
-            {
-                Loggers.MangaCrawler.InfoFormat(
-                    "Already in work, server: {0} state: {1}",
-                    a_server, a_server.State);
+            if (!a_server.IsDownloadRequired(a_force))
                 return;
+
+            lock (m_downloading)
+            {
+                m_downloading.Add(a_server);
             }
+
+            a_server.State = ServerState.Waiting;
+            a_server.LimiterOrder = Catalog.NextID();
 
             new Task(() =>
             {
@@ -61,44 +93,20 @@ namespace MangaCrawlerLib
             }, TaskCreationOptions.LongRunning).Start(Limiter.Scheduler);
         }
 
-        public static void ClearCache()
-        {
-            foreach (var server in s_servers)
-            {
-                foreach (var serie in server.Series)
-                {
-                    foreach (var chapter in serie.Chapters)
-                    {
-                        chapter.CachePages.ClearCache();
-                    }
-
-                    serie.CacheChapters.ClearCache();
-                }
-
-                server.CacheSeries.ClearCache();
-            }
-        }
-
-        public static void DownloadChapters(Serie a_serie)
+        public void DownloadChapters(Serie a_serie, bool a_force)
         {
             if (a_serie == null)
                 return;
 
-            bool download_required = NH.TransactionLockUpdateWithResult(a_serie, () =>
-            {
-                if (!a_serie.DownloadRequired)
-                    return false;
-                a_serie.SetState(SerieState.Waiting);
-                return true;
-            });
-
-            if (!download_required)
-            {
-                Loggers.MangaCrawler.InfoFormat(
-                    "Already in work, serie: {0} state: {1}",
-                    a_serie, a_serie.State);
+            if (!a_serie.IsDownloadRequired(a_force))
                 return;
+
+            lock (m_downloading)
+            {
+                m_downloading.Add(a_serie);
             }
+            a_serie.State = SerieState.Waiting;
+            a_serie.LimiterOrder = Catalog.NextID();
 
             new Task(() =>
             {
@@ -106,72 +114,104 @@ namespace MangaCrawlerLib
             }, TaskCreationOptions.LongRunning).Start(Limiter.Scheduler);
         }
 
-        public static void DownloadPages(IEnumerable<Chapter> a_chapters)
+        public void DownloadPages(IEnumerable<Chapter> a_chapters)
         {
+            a_chapters = a_chapters.Where(ch => !ch.IsDownloading).ToList();
+
+            if (!a_chapters.Any())
+                return;
+
             foreach (var chapter in a_chapters)
             {
-                lock (s_works)
+                chapter.State = ChapterState.Waiting;
+                lock (m_downloading)
                 {
-                    if (s_works.Contains(chapter))
+                    m_downloading.Add(chapter);
+                }
+                Downloadings.Add(chapter);
+                chapter.LimiterOrder = Catalog.NextID();
+                Catalog.SaveChapterPages(chapter);
+            }
+
+            new Task(() =>
+            {
+                foreach (var chapter in a_chapters)
+                {
+                    Chapter chapter_sync = chapter;
+
+                    new Task(() =>
                     {
-                        Loggers.MangaCrawler.InfoFormat(
-                            "Already in work, chapter: {0} state: {1}",
-                            chapter, chapter.State);
-                        continue;
-                    }
-
-                    s_works.Add(chapter);
+                        chapter_sync.DownloadPages();
+                    }, TaskCreationOptions.LongRunning).Start(Limiter.Scheduler);
                 }
-
-                Chapter chapter_sync = chapter;
-
-                bool download_required = NH.TransactionLockUpdateWithResult(chapter_sync, () =>
-                {
-                    if (chapter_sync.IsWorking)
-                        return false;
-                    chapter_sync.SetState(ChapterState.Waiting);
-
-                    return true;
-                });
-
-                if (!download_required)
-                {
-                    Loggers.MangaCrawler.InfoFormat(
-                        "Already in work, chapter: {0} state: {1}",
-                        chapter_sync, chapter_sync.State);
-                    continue;
-                }
-
-                Loggers.MangaCrawler.InfoFormat(
-                    "Chapter: {0} state: {1}",
-                    chapter_sync, chapter_sync.State);
-
-                new Task(() =>
-                {
-                    chapter_sync.DownloadPages(GetMangaRootDir(), UseCBZ());
-                }, TaskCreationOptions.LongRunning).Start(Limiter.Scheduler);
-            }
+            }).Start();
         }
 
-        public static IEnumerable<Chapter> Works
+        public IEnumerable<Server> Servers
         {
             get
             {
-                lock (s_works)
-                {
-                    return s_works.ToArray();
-                }
+                return m_servers;
             }
         }
 
-        public static IEnumerable<Server> Servers
+        public void Debug_ResetCheckDate()
         {
-            get
-            {
-                if (s_servers == null)
-                    s_servers = NH.TransactionWithResult(session => session.Query<Server>().ToArray());
+            foreach (var server in Servers)
+                server.ResetCheckDate();
+        }
 
-                return s_servers;
+        public void Debug_InsertSerie(int a_index, Server a_server)
+        {
+            (a_server.Crawler as TestServerCrawler).Debug_InsertSerie(a_index);
+        }
+
+        public void Debug_RemoveSerie(Server a_server, Serie SelectedSerie)
+        {
+            (a_server.Crawler as TestServerCrawler).Debug_RemoveSerie(SelectedSerie);
+        }
+
+        public void Debug_InsertChapter(int a_index, Serie a_serie)
+        {
+            (a_serie.Crawler as TestServerCrawler).Debug_InsertChapter(a_serie, a_index);
+        }
+
+        public void Debug_RemoveChapter(Chapter a_chapter)
+        {
+            (a_chapter.Crawler as TestServerCrawler).Debug_RemoveChapter(a_chapter);
+        }
+
+        public void Debug_RenameSerie(Serie a_serie)
+        {
+            (a_serie.Crawler as TestServerCrawler).Debug_RenameSerie(a_serie);
+        }
+
+        public void Debug_RenameChapter(Chapter a_chapter)
+        {
+            (a_chapter.Crawler as TestServerCrawler).Debug_RenameChapter(a_chapter);
+        }
+
+        public void Debug_ChangeSerieURL(Serie a_serie)
+        {
+            (a_serie.Crawler as TestServerCrawler).Debug_ChangeSerieURL(a_serie);
+        }
+
+        public void Debug_ChangeChapterURL(Chapter a_chapter)
+        {
+            (a_chapter.Crawler as TestServerCrawler).Debug_ChangeChapterURL(a_chapter);
+        }
+
+        public void BookmarksIgnored(IEnumerable<Chapter> a_chapters)
+        {
+            var chapters_grouped_by_serie = from ch in a_chapters
+                     group ch by ch.Serie;
+
+            foreach (var chapters_group in chapters_grouped_by_serie)
+            {
+                foreach (var chapter in chapters_group)
+                    chapter.BookmarkNew = false;
+
+                Catalog.Save(chapters_group.First().Serie);
             }
         }
     }

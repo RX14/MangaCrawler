@@ -19,5 +19,15 @@ namespace TomanuExtensions
             foreach (var key in a_keys)
                 a_dictionary.Remove(key);
         }
+
+        public static V TryGetValueSafe<V, K>(
+            this IDictionary<K, V> a_dictionary, K a_key)
+        {
+            V v;
+            if (a_dictionary.TryGetValue(a_key, out v))
+                return v;
+            else
+                return default(V);
+        }
     }
 }

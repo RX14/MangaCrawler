@@ -24,12 +24,18 @@ namespace MangaCrawler
             return Server.Name;
         }
 
-        public override int ID
+        public override ulong ID
         {
             get
             {
                 return Server.ID;
             }
+        }
+
+        private void DrawCount(Graphics a_graphics, Rectangle a_rect, Font a_font)
+        {
+            a_graphics.DrawString(Server.Series.Count.ToString(),
+                a_font, Brushes.Green, a_rect, StringFormat.GenericDefault);
         }
 
         public override void DrawItem(DrawItemEventArgs a_args)
@@ -49,9 +55,7 @@ namespace MangaCrawler
 
                     case ServerState.Downloaded:
 
-                        a_args.Graphics.DrawString(
-                            String.Format(Resources.Series, Server.GetSeries().Count()),
-                            font, Brushes.Green, rect, StringFormat.GenericDefault);
+                        DrawCount(a_args.Graphics, rect, font);
                         break;
 
                     case ServerState.Waiting:
@@ -67,13 +71,19 @@ namespace MangaCrawler
                             font, Brushes.Blue, rect, StringFormat.GenericDefault);
                         break;
 
-                    case ServerState.Initial: break;
+                    case ServerState.Initial:
 
-                      default: throw new NotImplementedException();
+                        if (Server.Series.Count != 0)
+                            DrawCount(a_args.Graphics, rect, font);
+                        break;
+
+                    default: 
+                          
+                          throw new NotImplementedException();
                 }
             };
 
-            DrawItem(a_args, Server.Name, draw_tip);
+            DrawItem(a_args, draw_tip);
         }
     }
 }

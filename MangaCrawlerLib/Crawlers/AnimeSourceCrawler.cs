@@ -11,7 +11,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using TomanuExtensions;
 
-namespace MangaCrawlerLib
+namespace MangaCrawlerLib.Crawlers
 {
     internal class AnimeSourceCrawler : Crawler
     {
@@ -72,7 +72,7 @@ namespace MangaCrawlerLib
 
                 for (int page = 1; page <= pages_count; page++)
                 {
-                    Page pi = new Page(a_chapter, a_chapter.URL + "&page=" + page, page);
+                    Page pi = new Page(a_chapter, a_chapter.URL + "&page=" + page, page, "");
 
                     yield return pi;
                 }
@@ -86,7 +86,7 @@ namespace MangaCrawlerLib
 
                     Page pi = new Page(a_chapter, 
                                        "http://www.anime-source.com/banzai/" + page.GetAttributeValue("value", ""),
-                                       index);
+                                       index, "");
 
                     yield return pi;
                 }
@@ -98,7 +98,7 @@ namespace MangaCrawlerLib
             HtmlDocument doc = DownloadDocument(a_page);
 
             string xpath;
-            if (a_page.Chapter.CachePages.Count == a_page.Index)
+            if (a_page.Chapter.Pages.Count == a_page.Index)
                 xpath = "/html/body/center/table/tr/td/table[5]/tr/td/div/img";
             else
                 xpath = "/html/body/center/table/tr/td/table[5]/tr/td/div/a/img";

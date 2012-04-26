@@ -9,7 +9,7 @@ using HtmlAgilityPack;
 
 namespace MangaCrawlerLib
 {
-    public abstract class Crawler
+    internal abstract class Crawler
     {
         public abstract string Name { get; }
 
@@ -31,7 +31,7 @@ namespace MangaCrawlerLib
                 }
                 catch (WebException ex)
                 {
-                    Loggers.MangaCrawler.Info("exception, {0}", ex);
+                    Loggers.MangaCrawler.Error("Exception, {0}", ex);
 
                     ex1 = ex;
                     continue;
@@ -44,8 +44,8 @@ namespace MangaCrawlerLib
         internal HtmlDocument DownloadDocument(Server a_server, string a_url = null)
         {
             return DownloadDocument(
-                (a_url == null) ? a_server.URL : a_url, 
-                () => NH.TransactionLockUpdate(a_server, () => a_server.SetState(ServerState.Downloading)), 
+                (a_url == null) ? a_server.URL : a_url,
+                () => a_server.State = ServerState.Downloading,
                 () => Limiter.Aquire(a_server),
                 () => Limiter.Release(a_server));
         }
@@ -54,7 +54,7 @@ namespace MangaCrawlerLib
         {
             return DownloadDocument(
                 (a_url == null) ? a_serie.URL : a_url, 
-                () => NH.TransactionLockUpdate(a_serie, () => a_serie.SetState(SerieState.Downloading)), 
+                () => a_serie.State  = SerieState.Downloading, 
                 () => Limiter.Aquire(a_serie),
                 () => Limiter.Release(a_serie));
         }
@@ -63,22 +63,30 @@ namespace MangaCrawlerLib
         {
             return DownloadDocument(
                 (a_url == null) ? a_chapter.URL : a_url, 
-                () => NH.TransactionLockUpdate(a_chapter, () => a_chapter.SetState(ChapterState.DownloadingPagesList)), 
+                () => a_chapter.State = ChapterState.DownloadingPagesList, 
                 () => Limiter.Aquire(a_chapter),
-                () => Limiter.Release(a_chapter));
+                () => Limiter.Release(a_chapter), 
+                a_chapter.Token);
         }
 
         internal HtmlDocument DownloadDocument(Page a_page, string a_url = null)
         {
             return DownloadDocument(
                 (a_url == null) ? a_page.URL : a_url, 
-                () => NH.TransactionLockUpdate(a_page, () => a_page.SetState(PageState.Downloading)), 
+                () => a_page.State = PageState.Downloading, 
                 () => Limiter.Aquire(a_page),
-                () => Limiter.Release(a_page));
+                () => Limiter.Release(a_page),
+                a_page.Chapter.Token);
         }
 
-        internal virtual HtmlDocument DownloadDocument(string a_url, Action a_started, 
+        internal HtmlDocument DownloadDocument(string a_url, Action a_started,
             Action a_aquire, Action a_release)
+        {
+            return DownloadDocument(a_url, a_started, a_aquire, a_release, CancellationToken.None);
+        }
+
+        internal HtmlDocument DownloadDocument(string a_url, Action a_started, 
+            Action a_aquire, Action a_release, CancellationToken a_token)
         {
             return DownloadWithRetry(() =>
             {
@@ -95,11 +103,13 @@ namespace MangaCrawlerLib
                     if (web.StatusCode == HttpStatusCode.NotFound)
                     {
                         Loggers.MangaCrawler.InfoFormat(
-                            "ConnectionsLimiter.DownloadDocument - series - page was not found, url: {0}",
+                            "Series - page was not found, url: {0}",
                             a_url);
 
                         return null;
                     }
+
+                    a_token.ThrowIfCancellationRequested();
 
                     return page;
                 }
@@ -121,7 +131,7 @@ namespace MangaCrawlerLib
                     HttpWebRequest myReq = (HttpWebRequest)WebRequest.Create(
                         a_page.ImageURL);
 
-                    myReq.UserAgent = DownloadManager.UserAgent;
+                    myReq.UserAgent = DownloadManager.Instance.MangaSettings.UserAgent;
                     myReq.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
                     myReq.Referer = a_page.URL;
 
@@ -138,14 +148,7 @@ namespace MangaCrawlerLib
                             if (readed == 0)
                                 break;
 
-                            if (a_page.Chapter.Token.IsCancellationRequested)
-                            {
-                                Loggers.Cancellation.InfoFormat(
-                                    "cancellation requested, work: {0} state: {1}",
-                                    this, a_page.Chapter.State);
-
-                                a_page.Chapter.Token.ThrowIfCancellationRequested();
-                            }
+                            a_page.Chapter.Token.ThrowIfCancellationRequested();
 
                             mem_stream.Write(buffer, 0, readed);
                         }
@@ -165,7 +168,7 @@ namespace MangaCrawlerLib
         {
             get
             {
-                return Limiter.MAX_CONNECTIONS_PER_SERVER;
+                return DownloadManager.Instance.MangaSettings.MaximumConnectionsPerServer;
             }
         }
     }

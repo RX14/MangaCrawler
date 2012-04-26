@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using TomanuExtensions;
 
-namespace MangaCrawlerLib
+namespace MangaCrawlerLib.Crawlers
 {
     internal class MangaVolumeCrawler : Crawler
     {
@@ -127,7 +127,10 @@ namespace MangaCrawlerLib
             var license = doc.DocumentNode.SelectSingleNode("//div[@id='LicenseWarning']");
 
             if (license != null)
+            {
+                a_progress_callback(100, new Chapter[0]);
                 return;
+            }
 
             do
             {
@@ -238,7 +241,8 @@ namespace MangaCrawlerLib
                     a_chapter,
                     String.Format("http://www.mangavolume.com{0}", 
                         page.GetAttributeValue("value", "")),
-                    index);
+                    index, 
+                    "");
 
                 yield return pi;
             }

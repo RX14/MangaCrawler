@@ -118,6 +118,34 @@ namespace TomanuExtensions
         }
 
         /// <summary>
+        /// Extension method may cause problem: -d.InRange(a, b) means -(d.InRange(a,b))
+        /// </summary>
+        /// <param name="a_value"></param>
+        /// <param name="a_min_inclusive"></param>
+        /// <param name="a_max_inclusive"></param>
+        /// <returns></returns>
+        public static bool InRange(float a_value, float a_min_inclusive, float a_max_inclusive)
+        {
+            Debug.Assert(a_min_inclusive <= a_max_inclusive);
+
+            return (a_value >= a_min_inclusive) && (a_value <= a_max_inclusive);
+        }
+
+        /// <summary>
+        /// Extension method may cause problem: -d.InRange(a, b) means -(d.InRange(a,b))
+        /// </summary>
+        /// <param name="a_value"></param>
+        /// <param name="a_min_inclusive"></param>
+        /// <param name="a_max_inclusive"></param>
+        /// <returns></returns>
+        public static bool InRange(double a_value, double a_min_inclusive, double a_max_inclusive)
+        {
+            Debug.Assert(a_min_inclusive <= a_max_inclusive);
+
+            return (a_value >= a_min_inclusive) && (a_value <= a_max_inclusive);
+        }
+
+        /// <summary>
         /// Extension method may cause problem: -d.Limit(a, b) means -(d.Limit(a,b))
         /// </summary>
         /// <param name="a_d"></param>

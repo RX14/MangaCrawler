@@ -8,69 +8,56 @@ using System.Web;
 using System.Diagnostics;
 using System.Threading;
 using TomanuExtensions.Utils;
-using NHibernate.Mapping.ByCode;
 
 namespace MangaCrawlerLib
 {
     public class Page : Entity
     {
-        public virtual Chapter Chapter { get; protected set; }
-        public virtual int Index { get; protected set; }
-        public virtual byte[] Hash { get; protected set; }
-        public virtual string ImageURL { get; protected set; }
-        public virtual string Name { get; protected set; }
-        public virtual string ImageFilePath { get; protected set; }
-        public virtual PageState State { get; protected set; }
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        private PageState m_state;
 
-        protected Page()
+        public Chapter Chapter { get; protected set; }
+        public int Index { get; protected set; }
+        public byte[] Hash { get; protected set; }
+        public string ImageURL { get; protected set; }
+        public string Name { get; protected set; }
+        public string ImageFilePath { get; protected set; }
+
+        internal Page(Chapter a_chapter, string a_url, int a_index, string a_name)
+            : this(a_chapter, a_url, a_index, Catalog.NextID(), a_name, null, null, PageState.Initial)
         {
         }
 
-        internal Page(Chapter a_chapter, string a_url, int a_index, string a_name = null)
+        internal Page(Chapter a_chapter, string a_url, int a_index, ulong a_id, string a_name, byte[] a_hash, 
+            string a_image_file_path, PageState a_state) : base(a_id)
         {
+            Hash = a_hash;
+            ImageFilePath = a_image_file_path;
+            m_state = a_state;
+
             Chapter = a_chapter;
-            URL = HttpUtility.HtmlDecode(a_url);
+            URL = HtmlDecode(a_url);
             Index = a_index;
 
-            if (a_name != null)
+            if (State == PageState.Downloading)
+                m_state = PageState.Initial;
+            if (State == PageState.Waiting)
+                m_state = PageState.Initial;
+
+            if (a_name != "")
             {
                 a_name = a_name.Trim();
                 a_name = a_name.Replace("\t", " ");
                 while (a_name.IndexOf("  ") != -1)
                     a_name = a_name.Replace("  ", " ");
-                a_name = HttpUtility.HtmlDecode(a_name);
-                Name = FileUtils.RemoveInvalidFileDirectoryCharacters(a_name);
+                a_name = HtmlDecode(a_name);
+                Name = FileUtils.RemoveInvalidFileCharacters(a_name);
             }
             else
                 Name = Index.ToString();
         }
 
-        private void Map(ModelMapper a_mapper)
-        {
-            a_mapper.Class<Page>(m =>
-            {
-                m.Id(c => c.ID, mapper => mapper.Generator(Generators.Native));
-                m.Version("Version", mapper => { });
-                m.Property(c => c.Index, mapper => { });
-                m.Property(c => c.URL, mapping => mapping.NotNullable(true));
-                m.Property(c => c.ImageFilePath, mapping => mapping.NotNullable(false));
-                m.Property(c => c.Name, mapping => mapping.NotNullable(true));
-                m.Property(c => c.ImageURL, mapping => mapping.NotNullable(false));
-                m.Property(c => c.Hash, mapping => mapping.NotNullable(false));
-                m.Property(c => c.State, mapping => { });
-
-                m.ManyToOne(
-                    c => c.Chapter,
-                    mapping =>
-                    {
-                        mapping.Fetch(FetchKind.Join);
-                        mapping.NotNullable(false);
-                    }
-                );
-            });
-        }
-
-        protected internal override Crawler Crawler
+        internal override Crawler Crawler
         {
             get
             {
@@ -78,7 +65,7 @@ namespace MangaCrawlerLib
             }
         }
 
-        public virtual Server Server
+        public Server Server
         {
             get
             {
@@ -86,7 +73,7 @@ namespace MangaCrawlerLib
             }
         }
 
-        public virtual Serie Serie
+        public Serie Serie
         {
             get
             {
@@ -97,55 +84,49 @@ namespace MangaCrawlerLib
         public override string ToString()
         {
             return String.Format("{0} - {1}/{2}",
-                    Chapter, Index, Chapter.CachePages.Count);
+                    Chapter, Index, Chapter.Pages.Count);
         }
 
-        protected internal virtual MemoryStream GetImageStream()
+        internal MemoryStream GetImageStream()
         {
             if (ImageURL == null)
-            {
-                ImageURL = HttpUtility.HtmlDecode(Crawler.GetImageURL(this));
-                NH.TransactionLockUpdate(this, () => { });
-            }
+                ImageURL = HtmlDecode(Crawler.GetImageURL(this));
 
             return Crawler.GetImageStream(this);  
         }
 
-        protected internal virtual void DownloadAndSavePageImage()
+        internal void DownloadAndSavePageImage(PageNamingStrategy a_pns)
         {
-            Debug.Assert(State == PageState.WaitingForDownloading);
+            new DirectoryInfo(Chapter.GetDirectory()).Create();
+
+            FileInfo temp_file = new FileInfo(Path.GetTempFileName());
 
             try
             {
-                new DirectoryInfo(Chapter.ChapterDir).Create();
-
-                FileInfo temp_file = new FileInfo(Path.GetTempFileName());
-
-                try
+                using (FileStream file_stream = new FileStream(temp_file.FullName, FileMode.Create))
                 {
+                    MemoryStream ms;
 
-                    using (FileStream file_stream = new FileStream(temp_file.FullName, FileMode.Create))
+                    try
                     {
-                        MemoryStream ms = null;
+                        ms = GetImageStream();
+                    }
+                    catch (Exception ex1)
+                    {
+                        Loggers.MangaCrawler.Error("Exception #1", ex1);
+                        throw;
+                    }
 
+                    try
+                    {
                         try
                         {
-                            ms = GetImageStream();
-                        }
-                        catch (WebException ex)
-                        {
-                            Loggers.MangaCrawler.Fatal("Exception #1", ex);
-                            throw;
-                        }
-
-                        try
-                        {
-                            System.Drawing.Image.FromStream(ms);
+                            System.Drawing.Image.FromStream(ms).Dispose();
                             ms.Position = 0;
                         }
-                        catch (Exception ex)
+                        catch (Exception ex2)
                         {
-                            Loggers.MangaCrawler.Fatal("Exception #2", ex);
+                            Loggers.MangaCrawler.Error("Exception #2", ex2);
                             throw;
                         }
 
@@ -154,60 +135,60 @@ namespace MangaCrawlerLib
                         ms.Position = 0;
                         byte[] hash;
                         TomanuExtensions.Utils.Hash.CalculateSHA256(ms, out hash);
-                        NH.TransactionLockUpdate(this, () => Hash = hash);
+                        Hash = hash;
                     }
-
-                    NH.TransactionLockUpdate(this, () =>
+                    finally
                     {
-                        ImageFilePath = Chapter.ChapterDir +
-                            FileUtils.RemoveInvalidFileDirectoryCharacters(Name) +
-                            FileUtils.RemoveInvalidFileDirectoryCharacters(
-                                Path.GetExtension(ImageURL).ToLower());
-                    });
-
-                    FileInfo image_file = new FileInfo(ImageFilePath);
-
-                    if (image_file.Exists)
-                        image_file.Delete();
-
-                    temp_file.MoveTo(image_file.FullName);
-
-                    NH.TransactionLockUpdate(this, () => SetState(PageState.Downloaded));
+                        ms.Dispose();
+                    }
                 }
-                finally
-                {
-                    if (temp_file.Exists)
-                        if (temp_file.FullName != ImageFilePath)
-                            temp_file.Delete();
-                }
+
+                string file_name = Rename(a_pns, Name);
+
+                ImageFilePath =
+                    Chapter.GetDirectory() +
+                    FileUtils.RemoveInvalidFileCharacters(file_name) +
+                    FileUtils.RemoveInvalidFileCharacters(Path.GetExtension(ImageURL).ToLower());
+
+                FileInfo image_file = new FileInfo(ImageFilePath);
+
+                if (image_file.Exists)
+                    image_file.Delete();
+
+                temp_file.MoveTo(image_file.FullName);
+
+                State = PageState.Downloaded;
             }
-            catch (OperationCanceledException)
+            finally
             {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Loggers.MangaCrawler.Fatal("Exception #3", ex);
-                NH.TransactionLockUpdate(this, () => SetState(PageState.Error));
+                if (temp_file.Exists)
+                    if (temp_file.FullName != ImageFilePath)
+                        temp_file.Delete();
             }
         }
 
-        protected internal virtual bool DownloadRequired()
+        private string Rename(PageNamingStrategy a_pns, string a_name)
         {
-            if (State == PageState.WaitingForDownloading)
-                return true;
+            Debug.Assert((a_pns != PageNamingStrategy.IndexToPreserveOrder) || 
+                         (a_pns != PageNamingStrategy.PrefixToPreserverOrder));
 
-            Debug.Assert(State == PageState.WaitingForVerifing);
+            if (a_pns == PageNamingStrategy.AlwaysUseIndex)
+                return Index.ToString();
+            else if (a_pns == PageNamingStrategy.AlwaysUsePrefix)
+                return String.Format("{0} - {1}", Index, Name);
+            else
+                return a_name;
+        }
 
-            NH.TransactionLockUpdate(this, () => SetState(PageState.Veryfing));
-
+        internal bool RequiredDownload(string a_chapter_dir)
+        {
             try
             {
                 if (ImageFilePath == null)
                     return true;
-                if (new FileInfo(ImageFilePath).Directory.FullName != Chapter.ChapterDir)
+                if (new FileInfo(ImageFilePath).Directory.FullName + "\\" != a_chapter_dir)
                     return true;
-                if (new FileInfo(ImageFilePath).Exists)
+                if (!new FileInfo(ImageFilePath).Exists)
                     return true;
                 if (Hash == null)
                     return true;
@@ -218,70 +199,72 @@ namespace MangaCrawlerLib
                 if (!Hash.SequenceEqual(hash))
                     return true;
 
-                NH.TransactionLockUpdate(this, () => SetState(PageState.Veryfied));
-
                 return false;
             }
             catch (Exception ex)
             {
-                Loggers.MangaCrawler.Fatal("Exception", ex);
-                return false;
+                Loggers.MangaCrawler.Error("Exception", ex);
+                return true;
             }
         }
 
-        protected internal virtual void SetState(PageState a_state)
+        public PageState State
         {
-            switch (a_state)
+            get
             {
-                case PageState.Downloaded:
-                {
-                    Debug.Assert(State == PageState.Downloading);
-                    break;
-                }
-                case PageState.Downloading:
-                {
-                    Debug.Assert((State == PageState.WaitingForDownloading) ||
-                                 (State == PageState.Veryfing));
-                    break;
-                }
-                case PageState.Error:
-                {
-                    Debug.Assert((State == PageState.Downloading) ||
-                                 (State == PageState.Veryfing));
-                    break;
-                }
-                case PageState.Veryfied:
-                {
-                    Debug.Assert(State == PageState.Veryfing);
-                    break;
-                }
-                case PageState.Veryfing:
-                {
-                    Debug.Assert(State == PageState.WaitingForVerifing);
-                    break;
-                }
-                case PageState.WaitingForVerifing:
-                {
-                    Debug.Assert((State == PageState.Downloaded) || 
-                                 (State == PageState.Initial) ||
-                                 (State == PageState.Error));
-                    break;
-                }
-                case PageState.WaitingForDownloading:
-                {
-                    Debug.Assert((State == PageState.Downloaded) ||
-                                 (State == PageState.Initial) ||
-                                 (State == PageState.Error));
-                    break;
-                }
-
-                default:
-                {
-                    throw new InvalidOperationException(String.Format("Unknown state: {0}", a_state));
-                }
+                return m_state;
             }
+            internal set
+            {
+                switch (value)
+                {
+                    case PageState.Downloaded:
+                    {
+                        Debug.Assert(State == PageState.Downloading);
+                        break;
+                    }
+                    case PageState.Downloading:
+                    {
+                        Debug.Assert((State == PageState.Waiting) ||
+                                     (State == PageState.Downloading));
+                        break;
+                    }
+                    case PageState.Error:
+                    {
+                        Debug.Assert(State == PageState.Downloading);
+                        break;
+                    }
+                    
+                    case PageState.Waiting:
+                    {
+                        Debug.Assert((State == PageState.Downloaded) ||
+                                     (State == PageState.Initial) ||
+                                     (State == PageState.Error));
+                        break;
+                    }
 
-            State = a_state;
+                    default:
+                    {
+                        throw new InvalidOperationException(String.Format("Unknown state: {0}", value));
+                    }
+                }
+
+                m_state = value;
+            }
+        }
+
+        public override bool IsDownloading
+        {
+            get
+            {
+                return (State == PageState.Downloading) ||
+                       (State == PageState.Waiting);
+            }
+        }
+
+        public override string GetDirectory()
+        {
+            return Chapter.GetDirectory();
         }
     }
 }

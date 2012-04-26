@@ -5,6 +5,9 @@ using System.Text;
 using System.Windows.Forms;
 using System.Diagnostics;
 using MangaCrawlerLib;
+using System.Xml.Linq;
+using System.Xml;
+using TomanuExtensions;
 
 namespace MangaCrawler
 {
@@ -43,7 +46,12 @@ namespace MangaCrawler
         public void Restore()
         {
             foreach (var sel_item in m_selected_items)
-                m_list_box.SetSelected(m_list_box.Items.IndexOf(sel_item), true);
+            {
+                int index = m_list_box.Items.IndexOf(sel_item);
+
+                if (index != -1)
+                    m_list_box.SetSelected(index, true);
+            }
 
             if ((m_selected_item != null) && (m_list_box.Items.Contains(m_selected_item)))
                 m_list_box.SelectedItem = m_selected_item;
@@ -60,7 +68,7 @@ namespace MangaCrawler
                 m_list_box.TopIndex = m_list_box.Items.Count - 1;
         }
 
-        private void Clear()
+        public void Clear()
         {
             m_top_index = -1;
             m_top_item = null;
@@ -71,14 +79,6 @@ namespace MangaCrawler
 
         public void ReloadItems(IEnumerable<ListItem> a_enum)
         {
-            var prev_state = new ListBoxVisualState(m_list_box);
-
-            if ((m_selected_item != null) && (!a_enum.Contains(m_selected_item)))
-                Clear();
-
-            if (a_enum.Count() == 0)
-                Clear();
-
             m_list_box.ReloadItems(a_enum, this);
         }
     }
