@@ -1,26 +1,8 @@
-DotNetZip/bin
-DotNetZip/obj
-
-HtmlAgilityPack/bin
-HtmlAgilityPack/obj
-
-MangaCrawler/bin
-MangaCrawler/obj
-
-MangaCrawlerLib/bin
-MangaCrawlerLib/obj
-
-MangaCrawlerTest/bin
-MangaCrawlerTest/obj
-
-log4net/obj
-log4net/bin
-
-TomanuExtensionsLib/bin
-TomanuExtensionsLib/obj
-
-yaxlib/bin
-yaxlib/obj
+.hg
+.idea
+*.iml
+bin/
+obj/
 
 Installer/Manga Crawler*.exe
 
@@ -37,6 +19,3 @@ MangaCrawlerTest/TestData/_test.log
 MangaCrawlerTest/TestData/_exceptions-candidates.txt
 MangaCrawlerTest/TestData/_exceptions.txt
 
-.hg
-.idea
-*.iml
