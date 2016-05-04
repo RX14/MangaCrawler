@@ -75,7 +75,10 @@ namespace MangaCrawler
 
             ListenForRestoreEvent();
 
-            WM_TASKBARCREATED = RegisterWindowMessage("TaskbarCreated");
+            if (!Program.isRunningOnMono)
+            {
+                WM_TASKBARCREATED = RegisterWindowMessage("TaskbarCreated");
+            }
 
             Text = String.Format("{0} {1}.{2}", Text,
                 Assembly.GetAssembly(GetType()).GetName().Version.Major, 
@@ -192,7 +195,8 @@ namespace MangaCrawler
             {
                 for (; ; )
                 {
-                    if (Program.RestoreEvent.WaitOne())
+                    var restoreEvent = Program.RestoreEvent;
+                    if (restoreEvent != null && restoreEvent.WaitOne())
                     {
                         Invoke(new Action(() =>
                         {

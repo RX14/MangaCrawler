@@ -16,11 +16,15 @@ namespace MangaCrawler
         private static Mutex s_setup_mutex;
         public static EventWaitHandle RestoreEvent;
 
+        public static bool isRunningOnMono;
+
         [STAThread]
         static void Main()
         {
             if (!OnlyOneCopy())
                 return;
+
+            isRunningOnMono = Type.GetType("Mono.Runtime") != null;
 
             log4net.Config.XmlConfigurator.Configure();
 
